@@ -150,6 +150,36 @@ expect := method(actual,
   wrapper
 )
 
+spyFor := method(target,
+	spy := Spy clone
+	spy target := target
+	spy
+)
+
+Spy := Object clone
+Spy init := method(
+	self calls := Map clone
+	self
+)
+Spy forward := method(a, b, c, d, e,
+	// Record the call.
+	// We use explicit arguments instead of accessing "call messge arguments"
+	// because the latter contains copies of the arguments with their prototypes
+	// stripped off. That isn't very useful for expectations or, well, anything.
+	// This approach limits us to 5 arguments, but that should be enough in most
+	// cases.
+	methodCalls := self calls at(call message name)
+
+	if(methodCalls == nil,
+		methodCalls = list()
+		self calls atPut(call message name, methodCalls)
+	)
+
+	methodCalls append(call message argsEvaluatedIn(call sender))
+
+	call delegateTo(target)
+)
+
 Spec := Object clone
 Spec run := method(
   ex := try(doMessage(test))
