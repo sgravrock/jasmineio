@@ -159,25 +159,55 @@ spyFor := method(target,
 Spy := Object clone
 Spy init := method(
 	self calls := Map clone
+	self intercepts := Map clone
 	self
 )
+Spy intercept := method(name,
+  ic := InterceptConfigurator clone 
+  ic methodName := name
+  self intercepts atPut(name, ic)
+  ic
+)
 Spy forward := method(a, b, c, d, e,
-	// Record the call.
-	// We use explicit arguments instead of accessing "call messge arguments"
-	// because the latter contains copies of the arguments with their prototypes
-	// stripped off. That isn't very useful for expectations or, well, anything.
-	// This approach limits us to 5 arguments, but that should be enough in most
-	// cases.
-	methodCalls := self calls at(call message name)
+  // Record the call.
+  // We use explicit arguments instead of accessing "call messge arguments"
+  // because the latter contains copies of the arguments with their prototypes
+  // stripped off. That isn't very useful for expectations or, well, anything.
+  // This approach limits us to 5 arguments, but that should be enough in most
+  // cases.
+  name := call message name
+  methodCalls := self calls at(name)
 
-	if(methodCalls == nil,
-		methodCalls = list()
-		self calls atPut(call message name, methodCalls)
-	)
+  if(methodCalls == nil,
+    methodCalls = list()
+    self calls atPut(name, methodCalls)
+  )
 
-	methodCalls append(call message argsEvaluatedIn(call sender))
+  methodCalls append(call message argsEvaluatedIn(call sender))
 
-	call delegateTo(target)
+  // Forward the call to the spied-on object, or to a configured interceptor.
+  intercept := self intercepts at(name)
+  configurdTarget := if(intercept, intercept target, self target)
+  if(intercept, name = intercept methodName)
+
+  if(configurdTarget,
+    call delegateToMethod(configurdTarget, name),
+    self)
+)
+
+// Used to configure actions to be done when a method is called.
+// Use Spy intercept to create these rather than constructing them directly.
+InterceptConfigurator := Object clone
+InterceptConfigurator target := nil
+InterceptConfigurator methodName := nil
+InterceptConfigurator andForwardTo := method(target,
+  self target = target
+  self
+)
+InterceptConfigurator andCallFake := method(fake,
+  self target := fake
+  self methodName := "call"
+  self
 )
 
 Spec := Object clone
